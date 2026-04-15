@@ -58,7 +58,7 @@ xray_file = st.sidebar.file_uploader("🩻 X-Ray Image", type=["png", "jpg", "jp
 # =========================================================
 @st.cache_resource
 def train_model():
-    df = pd.read_csv("D:/multimodel/heart.csv")
+    df = pd.read_csv("data/heart.csv")
     df = pd.get_dummies(df, drop_first=True)
 
     X = df.drop("HeartDisease", axis=1)
