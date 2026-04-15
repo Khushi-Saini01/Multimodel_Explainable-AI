@@ -1,5 +1,5 @@
 # =========================================================
-# 🏥 HOSPITAL-GRADE AI DASHBOARD (CLINICAL UI)
+# 🏥 HOSPITAL-GRADE AI DASHBOARD (IIT + CLINICAL UI)
 # =========================================================
 
 import streamlit as st
@@ -149,26 +149,58 @@ if st.button("🧠 RUN DIAGNOSTIC ANALYSIS"):
         except:
             ecg_prob = 0.0
 
-    # X-ray
+    # =====================================================
+    # 🩻 X-RAY (ADDED FEATURE)
+    # =====================================================
     xray_prob = 0.0
+    heatmap_img = None
+    boxed_img = None
+    original_img = None
+
     if xray_file:
         try:
-            img = Image.open(xray_file).convert("RGB")
-            img = np.array(img)
-            img = cv2.resize(img, (128, 128)) / 255.0
-            img = img.reshape(1,128,128,3)
-            xray_prob = float(xray_model.predict(img)[0][0])
+            img_pil = Image.open(xray_file).convert("RGB")
+            original_img = img_pil
+
+            img = np.array(img_pil)
+            img_resized = cv2.resize(img, (128, 128)) / 255.0
+            img_input = img_resized.reshape(1,128,128,3)
+
+            xray_prob = float(xray_model.predict(img_input)[0][0])
+
+            # 🔥 HEATMAP
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            gray = cv2.GaussianBlur(gray, (7,7), 0)
+
+            heatmap = cv2.applyColorMap(gray, cv2.COLORMAP_JET)
+            heatmap_img = cv2.addWeighted(img, 0.6, heatmap, 0.4, 0)
+
+            # 🔴 INFECTED REGION
+            _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)
+
+            kernel = np.ones((5,5), np.uint8)
+            thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+
+            contours,_ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+            boxed_img = img.copy()
+
+            for c in contours:
+                if cv2.contourArea(c) > 800:
+                    x,y,w,h = cv2.boundingRect(c)
+                    cv2.rectangle(boxed_img,(x,y),(x+w,y+h),(0,0,255),2)
+                    cv2.putText(boxed_img, "Affected", (x,y-5),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), 2)
+
         except:
-            xray_prob = 0.0
+            pass
 
     # FINAL FUSION
     weights = np.array([0.5, 0.25, 0.25])
     probs = np.array([tab_prob, ecg_prob, xray_prob])
     final_risk = float(np.dot(weights, probs))
 
-    # =====================================================
     # METRICS
-    # =====================================================
     col1, col2, col3, col4 = st.columns(4)
 
     col1.metric("Patient ID", patient_id)
@@ -178,25 +210,38 @@ if st.button("🧠 RUN DIAGNOSTIC ANALYSIS"):
 
     st.markdown("---")
 
-    # =====================================================
     # GAUGE
-    # =====================================================
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
         value=final_risk * 100,
         title={'text': "Cardiovascular Risk Level"},
-        gauge={
-            'axis': {'range': [0, 100]},
-            'bar': {'color': "red"},
-            'steps': [
-                {'range': [0, 30], 'color': "green"},
-                {'range': [30, 70], 'color': "yellow"},
-                {'range': [70, 100], 'color': "red"},
-            ]
-        }
+        gauge={'axis': {'range': [0, 100]}}
     ))
 
     st.plotly_chart(fig, use_container_width=True)
+
+    # =====================================================
+    # 🩻 X-RAY VISUAL COMPARISON (ADDED)
+    # =====================================================
+    if heatmap_img is not None:
+
+        st.subheader("🩻 X-Ray AI Analysis")
+
+        col1, col2, col3 = st.columns(3)
+
+        col1.image(original_img, caption="🟢 Original", use_container_width=True)
+        col2.image(heatmap_img, caption="🔥 AI Heatmap", use_container_width=True)
+        col3.image(boxed_img, caption="🔴 Infected Region", use_container_width=True)
+
+        st.info("Heatmap = AI focus | Red box = suspected infection area")
+
+    # STATUS
+    if final_risk < 0.3:
+        st.success("🟢 LOW RISK PATIENT")
+    elif final_risk < 0.7:
+        st.warning("🟡 MODERATE RISK")
+    else:
+        st.error("🔴 HIGH RISK")
 
     # =====================================================
     # STATUS
