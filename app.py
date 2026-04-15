@@ -1,5 +1,5 @@
 # =========================================================
-# 🏥 HOSPITAL-GRADE AI DASHBOARD (IIT + CLINICAL UI)
+# 🏥 HOSPITAL-GRADE AI DASHBOARD (CLINICAL UI)
 # =========================================================
 
 import streamlit as st
