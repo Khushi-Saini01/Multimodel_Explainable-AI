@@ -25,7 +25,7 @@ np.random.seed(42)
 # =========================================================
 # 1. TABULAR DATA
 # =========================================================
-df = pd.read_csv("data/heart.csv")
+df = pd.read_csv(r"D:\multimodel\heart.csv")
 df = pd.get_dummies(df, drop_first=True).astype(np.float32)
 
 X = df.drop("HeartDisease", axis=1)
@@ -75,7 +75,7 @@ def load_xray(folder):
 
     return np.array(X_img), np.array(y_img)
 
-X_xray, y_xray = load_xray("data/chest_xray/train")
+X_xray, y_xray = load_xray(r"D:\multimodel\chest_xray\train")
 
 inputs = Input(shape=(128,128,3))
 x = Conv2D(32, 3, activation="relu")(inputs)
@@ -101,7 +101,7 @@ xray_prob = np.clip(xray_prob, 1e-5, 1-1e-5)
 # =========================================================
 # 4. ECG MODEL (CRITICAL FIX FOR LABELS)
 # =========================================================
-ecg_train = pd.read_csv("data/ecg/mitbih_train.csv")
+ecg_train = pd.read_csv(r"D:\multimodel\ecg\mitbih_train.csv")
 
 X_ecg = ecg_train.iloc[:, :-1].values
 y_ecg = ecg_train.iloc[:, -1].values
@@ -246,3 +246,11 @@ for i in range(5):
 
     final = fusion_model.predict([[fusion_X[i][0], fusion_X[i][1], fusion_X[i][2]]])[0]
     print("🔥 FINAL RISK:", final)
+
+import joblib
+
+joblib.dump(xgb,"xgb.pkl")
+joblib.dump(fusion_model,"fusion_model.pkl")
+
+xray_model.save("xray_model.h5")
+ecg_model.save("ecg_model.h5")
