@@ -56,24 +56,30 @@ xray_file = st.sidebar.file_uploader("🩻 X-Ray Image", type=["png", "jpg", "jp
 # =========================================================
 # TABULAR MODEL
 # =========================================================
-@st.cache_resource
-def train_model():
-    df = pd.read_csv("data/heart.csv")
-    df = pd.get_dummies(df, drop_first=True)
+# @st.cache_resource
+# def train_model():
+#     df = pd.read_csv("D:/multimodel/heart.csv")
+#     df = pd.get_dummies(df, drop_first=True)
 
-    X = df.drop("HeartDisease", axis=1)
-    y = df["HeartDisease"]
+#     X = df.drop("HeartDisease", axis=1)
+#     y = df["HeartDisease"]
 
-    model = XGBClassifier(
-        n_estimators=200,
-        max_depth=4,
-        learning_rate=0.05,
-        eval_metric="logloss"
-    )
-    model.fit(X, y)
-    return model, X.columns
+#     model = XGBClassifier(
+#         n_estimators=200,
+#         max_depth=4,
+#         learning_rate=0.05,
+#         eval_metric="logloss"
+#     )
+#     model.fit(X, y)
+#     return model, X.columns
 
-model, feature_cols = train_model()
+# model, feature_cols = train_model()
+import joblib
+
+model = joblib.load("xgb.pkl")
+
+# IMPORTANT: same feature order used during training
+feature_cols = model.get_booster().feature_names
 
 # =========================================================
 # SHAP EXPLAINER
@@ -108,27 +114,30 @@ def build_input():
 # =========================================================
 # ECG + X-RAY MODELS (DEMO)
 # =========================================================
-@st.cache_resource
-def load_ecg():
-    model = tf.keras.Sequential([
-        tf.keras.layers.Conv1D(32, 3, activation="relu", input_shape=(187, 1)),
-        tf.keras.layers.GlobalAveragePooling1D(),
-        tf.keras.layers.Dense(1, activation="sigmoid")
-    ])
-    return model
+# @st.cache_resource
+# def load_ecg():
+#     model = tf.keras.Sequential([
+#         tf.keras.layers.Conv1D(32, 3, activation="relu", input_shape=(187, 1)),
+#         tf.keras.layers.GlobalAveragePooling1D(),
+#         tf.keras.layers.Dense(1, activation="sigmoid")
+#     ])
+#     return model
 
-@st.cache_resource
-def load_xray():
-    model = tf.keras.Sequential([
-        tf.keras.layers.Conv2D(32, 3, activation="relu", input_shape=(128,128,3)),
-        tf.keras.layers.GlobalAveragePooling2D(),
-        tf.keras.layers.Dense(1, activation="sigmoid")
-    ])
-    return model
+ecg_model = tf.keras.models.load_model("ecg_model.h5")
 
-ecg_model = load_ecg()
-xray_model = load_xray()
+# @st.cache_resource
+# def load_xray():
+#     model = tf.keras.Sequential([
+#         tf.keras.layers.Conv2D(32, 3, activation="relu", input_shape=(128,128,3)),
+#         tf.keras.layers.GlobalAveragePooling2D(),
+#         tf.keras.layers.Dense(1, activation="sigmoid")
+#     ])
+#     return model
 
+# ecg_model = load_ecg()
+# xray_model = load_xray()
+
+xray_model = tf.keras.models.load_model("xray_model.h5")
 # =========================================================
 # PREDICTION BUTTON
 # =========================================================
@@ -236,16 +245,6 @@ if st.button("🧠 RUN DIAGNOSTIC ANALYSIS"):
         st.info("Heatmap = AI focus | Red box = suspected infection area")
 
     # STATUS
-    if final_risk < 0.3:
-        st.success("🟢 LOW RISK PATIENT")
-    elif final_risk < 0.7:
-        st.warning("🟡 MODERATE RISK")
-    else:
-        st.error("🔴 HIGH RISK")
-
-    # =====================================================
-    # STATUS
-    # =====================================================
     if final_risk < 0.3:
         st.success("🟢 LOW RISK PATIENT")
     elif final_risk < 0.7:
